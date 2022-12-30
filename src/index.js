@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { guify } from 'guify';
+
 import './style/main.css';
+import terrainVertexShader from './shaders/terrain/vertex.glsl';
+import terrainFragmentShader from './shaders/terrain/fragment.glsl';
 
 // Canvas
 const canvas = document.querySelector('.webgl');
@@ -27,6 +31,16 @@ window.addEventListener('resize', () => {
 });
 
 /**
+ * GUI
+ */
+const gui = new guify({
+    title: 'Debug panel',
+    align: 'right',
+    theme: 'dark',
+    barMode: 'none'
+});
+
+/**
  * Environments
  */
 // Scene
@@ -34,18 +48,35 @@ const scene = new THREE.Scene();
 
 // Camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
-camera.position.z = 3;
+camera.position.x = 1;
+camera.position.y = 1;
+camera.position.z = 1;
 scene.add(camera);
 
 // Controls
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 
-// plane
+/**
+ * Terrain
+ */
+// terrain
 const terrain = {};
-terrain.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-terrain.material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+// geometry
+terrain.geometry = new THREE.PlaneGeometry(1, 1, 100, 100);
+terrain.geometry.rotateX(-Math.PI * 0.5);
+
+// material
+terrain.material = new THREE.ShaderMaterial({
+    vertexShader: terrainVertexShader,
+    fragmentShader: terrainFragmentShader
+});
+
+// mesh
 terrain.mesh = new THREE.Mesh(terrain.geometry, terrain.material);
+terrain.mesh.scale.set(10, 10, 10);
+
 scene.add(terrain.mesh);
 
 // Renderer

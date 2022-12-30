@@ -18,7 +18,7 @@
     "url": "https://github.com/geekyorion/holographic-terrain/issues"
   },
   "homepage": "https://github.com/geekyorion/holographic-terrain#readme",
-  "devDependencies": {
+  "dependencies": {
     "@babel/core": "^7.20.7",
     "@babel/preset-env": "^7.20.2",
     "babel-loader": "^9.1.0",
@@ -27,6 +27,7 @@
     "css-loader": "^6.7.3",
     "file-loader": "^6.2.0",
     "glslify-loader": "^2.0.0",
+    "guify": "^0.15.1",
     "html-loader": "^4.2.0",
     "html-webpack-plugin": "^5.5.0",
     "raw-loader": "^4.0.2",
