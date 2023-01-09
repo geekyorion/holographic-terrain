@@ -37,8 +37,13 @@ const gui = new guify({
     title: 'Debug panel',
     align: 'right',
     theme: 'dark',
-    barMode: 'none'
+    barMode: 'none',
+    panelOverflowBehavior: 'overflow'
 });
+
+const guiVariables = {
+    clearColor: 0x141d29
+};
 
 /**
  * Environments
@@ -64,14 +69,31 @@ controls.enableDamping = true;
 const terrain = {};
 
 // geometry
-terrain.geometry = new THREE.PlaneGeometry(1, 1, 100, 100);
+terrain.geometry = new THREE.PlaneGeometry(1, 1, 600, 600);
 terrain.geometry.rotateX(-Math.PI * 0.5);
 
 // material
 terrain.material = new THREE.ShaderMaterial({
     vertexShader: terrainVertexShader,
-    fragmentShader: terrainFragmentShader
+    fragmentShader: terrainFragmentShader,
+    transparent: true,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+        uElevation: { value: 2 }
+    }
 });
+
+// debug
+gui.Register({
+    object: terrain.material.uniforms.uElevation,
+    property: 'value',
+    type: 'range',
+    label: 'uElevation',
+    min: 0.5,
+    max: 5,
+    step: 0.001
+})
 
 // mesh
 terrain.mesh = new THREE.Mesh(terrain.geometry, terrain.material);
@@ -85,9 +107,21 @@ const renderer = new THREE.WebGLRenderer({
     antialias: true
 });
 renderer.setSize(sizes.width, sizes.height);
-renderer.setClearColor(0x111111, 1);
+renderer.setClearColor(guiVariables.clearColor, 1);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// Debug
+gui.Register({
+    object: guiVariables,
+    property: 'clearColor',
+    type: 'color',
+    label: 'clearColor',
+    format: 'hex',
+    onChange: () => {
+        renderer.setClearColor(guiVariables.clearColor, 1);
+    }
+});
 
 /**
  * Loop
