@@ -96,7 +96,7 @@ terrain.texture.update = () => {
     // Big line
     terrain.texture.context.globalAlpha = 1;
     terrain.texture.context.fillRect(
-        0, 0, terrain.texture.width, round(terrain.texture.height * 0.1)
+        0, 0, terrain.texture.width, round(terrain.texture.height * 0.04)
     );
     
     // small lines
@@ -105,9 +105,9 @@ terrain.texture.update = () => {
     for (let i = 0; i < smallLinesCount; i++) {
         terrain.texture.context.fillRect(
             0,
-            round((terrain.texture.height - 0.2) / smallLinesCount) * i,
+            round((terrain.texture.height - 0.2) / terrain.texture.linesCount) * i + 1,
             terrain.texture.width,
-            round(terrain.texture.height * 0.03)
+            round(terrain.texture.height * 0.01)
         );
     }
 };
