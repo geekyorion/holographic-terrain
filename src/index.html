@@ -4,10 +4,194 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="A holographic, procedurally generated terrain rendered in real time with Three.js and GLSL shaders.">
+    <meta name="theme-color" content="#070b14">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <title>Holographic Terrain - WebGL</title>
 </head>
 <body>
-    <canvas class="webgl"></canvas>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <canvas class="webgl" aria-hidden="true"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="scroll-progress" aria-hidden="true"><span class="scroll-progress__bar"></span></div>
+
+    <header class="nav">
+        <a class="nav__brand" href="#hero">
+            <span class="nav__logo" aria-hidden="true"></span>
+            Holo<span class="gradient-text">Terrain</span>
+        </a>
+        <nav aria-label="Sections">
+            <ul class="nav__links">
+                <li><a href="#features" data-nav="features">Features</a></li>
+                <li><a href="#how" data-nav="how">How it works</a></li>
+                <li><a href="#playground" data-nav="playground">Playground</a></li>
+            </ul>
+        </nav>
+        <a class="button button--small button--ghost nav__cta" href="https://github.com/geekyorion/holographic-terrain" target="_blank" rel="noopener">GitHub</a>
+    </header>
+
+    <nav class="section-dots" aria-label="Section navigation">
+        <a href="#hero" data-dot="hero" aria-label="Intro"></a>
+        <a href="#features" data-dot="features" aria-label="Features"></a>
+        <a href="#how" data-dot="how" aria-label="How it works"></a>
+        <a href="#playground" data-dot="playground" aria-label="Playground"></a>
+        <a href="#start" data-dot="start" aria-label="Get started"></a>
+    </nav>
+
+    <main id="main">
+        <!-- Hero -->
+        <section class="section section--hero" id="hero" data-section="hero">
+            <div class="container hero">
+                <p class="eyebrow reveal">Real-time WebGL &middot; Three.js &middot; GLSL</p>
+                <h1 class="hero__title reveal">
+                    Terrain drawn in<br>
+                    <span class="gradient-text">flowing light</span>
+                </h1>
+                <p class="hero__lead reveal">
+                    A procedurally generated landscape traced by glowing contour lines.
+                    Every elevation band carries its own colour, and every colour keeps moving.
+                </p>
+                <div class="hero__actions reveal">
+                    <a class="button" href="#features">Explore the terrain</a>
+                    <a class="button button--ghost" href="#playground">Tune it yourself</a>
+                </div>
+            </div>
+            <a class="scroll-hint" href="#features" aria-label="Scroll to features">
+                <span class="scroll-hint__mouse" aria-hidden="true"></span>
+                <span>Scroll</span>
+            </a>
+        </section>
+
+        <!-- Features -->
+        <section class="section" id="features" data-section="features">
+            <div class="container">
+                <p class="eyebrow reveal">Features</p>
+                <h2 class="section__title reveal">Built from noise, <span class="gradient-text">painted with shaders</span></h2>
+                <div class="cards">
+                    <article class="card reveal">
+                        <span class="card__icon card__icon--1" aria-hidden="true"></span>
+                        <h3>Procedural elevation</h3>
+                        <p>Two octaves of Perlin noise sculpt the ground on the GPU, and the landscape drifts endlessly towards you.</p>
+                    </article>
+                    <article class="card reveal">
+                        <span class="card__icon card__icon--2" aria-hidden="true"></span>
+                        <h3>Chromatic contour lines</h3>
+                        <p>Major lines carry a flowing gradient while the mini lines between them each get their own hue and travelling pulses.</p>
+                    </article>
+                    <article class="card reveal">
+                        <span class="card__icon card__icon--3" aria-hidden="true"></span>
+                        <h3>Scroll-driven camera</h3>
+                        <p>Scrolling flies the camera through the scene, reshapes the terrain and shifts the palette. Scroll faster and the colours rush.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- How it works -->
+        <section class="section" id="how" data-section="how">
+            <div class="container split">
+                <div>
+                    <p class="eyebrow reveal">How it works</p>
+                    <h2 class="section__title reveal">One plane, <span class="gradient-text">three passes of math</span></h2>
+                    <ol class="steps">
+                        <li class="reveal">
+                            <span class="steps__index">01</span>
+                            <div>
+                                <h3>Displace</h3>
+                                <p>The vertex shader lifts a 600&times;600 plane using layered noise, flattening a valley in the middle.</p>
+                            </div>
+                        </li>
+                        <li class="reveal">
+                            <span class="steps__index">02</span>
+                            <div>
+                                <h3>Contour</h3>
+                                <p>The fragment shader slices the elevation into bands and draws anti-aliased lines with <code>fwidth</code>.</p>
+                            </div>
+                        </li>
+                        <li class="reveal">
+                            <span class="steps__index">03</span>
+                            <div>
+                                <h3>Colour</h3>
+                                <p>A cosine palette, offset by position, time and line index, keeps every line flowing.</p>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+                <pre class="code reveal" aria-label="Fragment shader excerpt"><code><span class="code__comment">// contour line, 1.0 on every band edge</span>
+<span class="code__keyword">float</span> contour(<span class="code__keyword">float</span> v, <span class="code__keyword">float</span> t) {
+  <span class="code__keyword">float</span> d = abs(fract(v + 0.5) - 0.5);
+  <span class="code__keyword">return</span> 1.0 - smoothstep(0.0, fwidth(v) * t, d);
+}
+
+<span class="code__comment">// flowing hue for the major lines</span>
+<span class="code__keyword">float</span> hue = pos.x * 0.06 - uTime * 0.12;
+<span class="code__keyword">vec3</span> color = palette(hue);</code></pre>
+            </div>
+        </section>
+
+        <!-- Playground -->
+        <section class="section" id="playground" data-section="playground">
+            <div class="container">
+                <p class="eyebrow reveal">Playground</p>
+                <h2 class="section__title reveal">Make it <span class="gradient-text">yours</span></h2>
+                <p class="section__lead reveal">Every control updates the live terrain behind this page.</p>
+
+                <form class="panel reveal" id="controls" onsubmit="return false">
+                    <label class="control">
+                        <span class="control__label">Elevation <output data-output="elevation"></output></span>
+                        <input type="range" name="elevation" min="0.5" max="4" step="0.01">
+                    </label>
+                    <label class="control">
+                        <span class="control__label">Major lines <output data-output="linesCount"></output></span>
+                        <input type="range" name="linesCount" min="1" max="8" step="0.1">
+                    </label>
+                    <label class="control">
+                        <span class="control__label">Mini lines per band <output data-output="miniLinesCount"></output></span>
+                        <input type="range" name="miniLinesCount" min="2" max="10" step="1">
+                    </label>
+                    <label class="control">
+                        <span class="control__label">Colour flow speed <output data-output="flowSpeed"></output></span>
+                        <input type="range" name="flowSpeed" min="0" max="3" step="0.01">
+                    </label>
+                    <label class="control">
+                        <span class="control__label">Mini line glow <output data-output="miniIntensity"></output></span>
+                        <input type="range" name="miniIntensity" min="0" max="1.5" step="0.01">
+                    </label>
+                    <fieldset class="control control--palettes">
+                        <legend class="control__label">Palette</legend>
+                        <div class="swatches" role="radiogroup">
+                            <label class="swatch"><input type="radio" name="palette" value="auto" checked><span class="swatch__chip swatch__chip--auto"></span>Scroll</label>
+                            <label class="swatch"><input type="radio" name="palette" value="0"><span class="swatch__chip" data-swatch="0"></span>Aurora</label>
+                            <label class="swatch"><input type="radio" name="palette" value="1"><span class="swatch__chip" data-swatch="1"></span>Synth</label>
+                            <label class="swatch"><input type="radio" name="palette" value="2"><span class="swatch__chip" data-swatch="2"></span>Ember</label>
+                            <label class="swatch"><input type="radio" name="palette" value="3"><span class="swatch__chip" data-swatch="3"></span>Ocean</label>
+                        </div>
+                    </fieldset>
+                    <button type="button" class="button button--ghost button--small" id="reset-controls">Reset</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Get started -->
+        <section class="section section--cta" id="start" data-section="start">
+            <div class="container cta">
+                <h2 class="section__title reveal">Run it <span class="gradient-text">locally</span></h2>
+                <pre class="code code--inline reveal"><code>npm i &amp;&amp; npm run dev</code></pre>
+                <div class="hero__actions reveal">
+                    <a class="button" href="https://github.com/geekyorion/holographic-terrain" target="_blank" rel="noopener">View on GitHub</a>
+                    <a class="button button--ghost" href="#hero">Back to top</a>
+                </div>
+            </div>
+            <footer class="footer">
+                Built with Three.js &amp; GLSL &middot; Add <code>#debug</code> to the URL for the debug panel
+            </footer>
+        </section>
+    </main>
 </body>
 </html>

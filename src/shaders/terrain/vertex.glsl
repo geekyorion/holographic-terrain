@@ -74,23 +74,29 @@ float cnoise(vec3 P){
 }
 
 uniform float uElevation;
-varying float vElevation;
+uniform float uValley;
+uniform float uOffset;
 
-float getElevation(vec3 _position) {
+varying float vElevation;
+varying vec2 vTerrainPosition;
+varying vec2 vUv;
+varying float vDepth;
+
+float getElevation(vec2 _position) {
     float elevation = 0.0;
-    
+
     // general elevation
     elevation += cnoise(vec3(
-        _position.xz * 0.3,
+        _position * 0.3,
         0.0
     )) * 0.5;
-    
+
     // smaller details
     elevation += cnoise(vec3(
-        (_position.xz + 123.0) * 1.0,
+        (_position + 123.0) * 1.0,
         0.0
     )) * 0.2;
-    
+
     elevation *= uElevation;
 
     return elevation;
@@ -99,7 +105,14 @@ float getElevation(vec3 _position) {
 void main() {
     vec4 modelPosition = modelMatrix * vec4(position, 1.0);
 
-    float elevation = getElevation(modelPosition.xyz);
+    // terrain scrolls towards the camera, so sample the noise with an offset
+    vec2 terrainPosition = modelPosition.xz + vec2(0.0, -uOffset);
+
+    float elevation = getElevation(terrainPosition);
+
+    // flatten a valley along the center so the hero text stays readable
+    float valley = smoothstep(0.0, 2.5, abs(modelPosition.x));
+    elevation *= mix(1.0 - uValley, 1.0, valley);
 
     modelPosition.y += elevation;
 
@@ -110,4 +123,7 @@ void main() {
 
     // varying
     vElevation = elevation;
+    vTerrainPosition = terrainPosition;
+    vUv = uv;
+    vDepth = -viewPosition.z;
 }
