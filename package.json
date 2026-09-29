@@ -1,7 +1,7 @@
 {
   "name": "holographic-terrain",
   "version": "1.0.0",
-  "description": "Holographic Terrain using threeJS",
+  "description": "Scroll-driven landing page on a holographic, procedurally generated terrain built with Three.js and GLSL",
   "main": "index.js",
   "scripts": {
     "build": "webpack --config ./bundler/webpack.prod.js",
@@ -17,7 +17,7 @@
   "bugs": {
     "url": "https://github.com/geekyorion/holographic-terrain/issues"
   },
-  "homepage": "https://github.com/geekyorion/holographic-terrain#readme",
+  "homepage": "https://geekyorion.github.io/holographic-terrain/",
   "dependencies": {
     "@babel/core": "^7.20.7",
     "@babel/preset-env": "^7.20.2",

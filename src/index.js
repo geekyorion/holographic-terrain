@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { guify } from 'guify';
 
 import './style/main.css';
 import terrainVertexShader from './shaders/terrain/vertex.glsl';
@@ -11,6 +10,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smoothstep = (t) => t * t * (3 - 2 * t);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const isSmallScreen = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches;
 const isDebug = new URLSearchParams(window.location.search).has('debug') || window.location.hash === '#debug';
 
 // Canvas
@@ -82,7 +82,9 @@ const cameraTarget = new THREE.Vector3(...keyframes.hero.target);
 const terrain = {};
 
 // geometry
-terrain.geometry = new THREE.PlaneGeometry(1, 1, 600, 600);
+// fewer vertices on phones and tablets, the contours stay smooth thanks to the per-pixel lines
+const segments = isSmallScreen ? 320 : 512;
+terrain.geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
 terrain.geometry.rotateX(-Math.PI * 0.5);
 
 // material
@@ -118,17 +120,53 @@ terrain.mesh.scale.set(20, 20, 20);
 
 scene.add(terrain.mesh);
 
+// Quality: the pixel ratio drops automatically when frames get too slow
+const quality = {
+    maxPixelRatio: Math.min(window.devicePixelRatio, isSmallScreen ? 1.5 : 2),
+    minPixelRatio: 0.75,
+    pixelRatio: 0,
+    frameTimes: [],
+    lastChange: 0
+};
+quality.pixelRatio = quality.maxPixelRatio;
+
+const adaptQuality = (deltaTime, now) => {
+    quality.frameTimes.push(deltaTime);
+
+    // judge roughly once per second, whatever the frame rate
+    const total = quality.frameTimes.reduce((sum, time) => sum + time, 0);
+    if (total < 1) return;
+
+    const average = total / quality.frameTimes.length;
+    quality.frameTimes.length = 0;
+
+    // leave some time between changes so the new resolution can settle
+    if (now - quality.lastChange < 1.5) return;
+
+    let pixelRatio = quality.pixelRatio;
+    if (average > 1 / 45) pixelRatio = Math.max(quality.minPixelRatio, pixelRatio - 0.25);
+    else if (average < 1 / 58) pixelRatio = Math.min(quality.maxPixelRatio, pixelRatio + 0.25);
+
+    if (pixelRatio !== quality.pixelRatio) {
+        quality.pixelRatio = pixelRatio;
+        quality.lastChange = now;
+        renderer.setPixelRatio(pixelRatio);
+    }
+};
+
 // Renderer
 let renderer = null;
 try {
     renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: true
+        // the shader already anti-aliases the lines, MSAA only helps on low density screens
+        antialias: window.devicePixelRatio < 2,
+        powerPreference: 'high-performance'
     });
     renderer.setSize(sizes.width, sizes.height);
     renderer.setClearColor(0x070b14, 1);
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(quality.pixelRatio);
 } catch (error) {
     // No WebGL: the page content still works, just without the terrain
     document.documentElement.classList.add('no-webgl');
@@ -138,7 +176,8 @@ try {
 /**
  * Debug panel (add ?debug or #debug to the URL)
  */
-if (isDebug) {
+// guify is only downloaded when the debug panel is requested
+if (isDebug) import('guify').then(({ guify }) => {
     const gui = new guify({
         title: 'Debug panel',
         align: 'right',
@@ -165,7 +204,7 @@ if (isDebug) {
             step: 0.001
         });
     });
-}
+});
 
 /**
  * Scroll
@@ -337,7 +376,7 @@ window.addEventListener('resize', () => {
     // Update renderer
     if (renderer) {
         renderer.setSize(sizes.width, sizes.height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(quality.pixelRatio);
     }
 
     measureSections();
@@ -411,7 +450,10 @@ const loop = () => {
     camera.lookAt(current.target);
 
     // Render
-    if (renderer) renderer.render(scene, camera);
+    if (renderer) {
+        renderer.render(scene, camera);
+        adaptQuality(deltaTime, clock.elapsedTime);
+    }
 
     // Keep looping
     window.requestAnimationFrame(loop);

@@ -2,7 +2,7 @@
     --bg: #070b14;
     --text: #e8ecf6;
     --text-muted: #9aa5bd;
-    --surface: rgba(14, 20, 34, 0.55);
+    --surface: rgba(11, 16, 28, 0.78);
     --surface-border: rgba(255, 255, 255, 0.09);
     --accent-1: #5ef2ff;
     --accent-2: #b36bff;
@@ -290,8 +290,6 @@ code {
     border-color: rgba(255, 255, 255, 0.2);
     color: var(--text);
     animation: none;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
 }
 
 .button--ghost:hover {
@@ -463,8 +461,6 @@ main {
     background: var(--surface);
     border: 1px solid var(--surface-border);
     border-radius: var(--radius);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
 }
 
 .card {
