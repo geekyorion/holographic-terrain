@@ -76,6 +76,8 @@ float cnoise(vec3 P){
 uniform float uElevation;
 uniform float uValley;
 uniform float uOffset;
+// hills sculpted in the explore mode: xy = terrain position, z = height, w = radius
+uniform vec4 uBumps[BUMPS_COUNT];
 
 varying float vElevation;
 varying vec2 vTerrainPosition;
@@ -113,6 +115,12 @@ void main() {
     // flatten a valley along the center so the hero text stays readable
     float valley = smoothstep(0.0, 2.5, abs(modelPosition.x));
     elevation *= mix(1.0 - uValley, 1.0, valley);
+
+    // sculpted hills
+    for (int i = 0; i < BUMPS_COUNT; i++) {
+        vec2 toBump = terrainPosition - uBumps[i].xy;
+        elevation += uBumps[i].z * exp(-dot(toBump, toBump) / (uBumps[i].w * uBumps[i].w));
+    }
 
     modelPosition.y += elevation;
 

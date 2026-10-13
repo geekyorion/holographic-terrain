@@ -11,6 +11,11 @@ A scroll-driven landing page on top of a real-time, procedurally generated terra
 - **Scroll-driven scene**: each section has its own camera angle, terrain height and palette, and scrolling blends smoothly between them
 - **Scroll velocity**: scroll faster and the colours and terrain rush with you
 - **Playground**: live sliders for elevation, line density, mini lines per band, colour flow speed, glow and palette
+- **3D explore mode**: from the Playground, take over the camera and the terrain
+  - **Orbit** (`1`), **Pan** (`2`) and zoom with the wheel, pinch, `+` / `-` or the toolbar
+  - **Sculpt** (`3`): drag up to raise a hill, down to dig a valley
+  - **Drag** (`4`): select a sculpted hill and drag it across the landscape, `Delete` removes it
+  - Reset the view (`R`), flatten every hill, open the terrain settings, and leave with **Done** or `Esc`
 - **Landing page UX**: sticky nav with active section, section dots, scroll progress bar, reveal-on-scroll content, pointer parallax, responsive down to phone widths
 - **Accessible**: keyboard focus styles, skip link, and reduced motion support (`prefers-reduced-motion`)
 
@@ -22,6 +27,7 @@ A scroll-driven landing page on top of a real-time, procedurally generated terra
 | Contour | `src/shaders/terrain/fragment.glsl` | Elevation is sliced into bands; `fwidth` draws anti-aliased lines at a constant pixel width |
 | Colour | `src/shaders/terrain/fragment.glsl` | A cosine palette offset by position, time and line index keeps every line flowing |
 | Scroll | `src/index.js` | Section keyframes (camera, elevation, valley, palette) are eased towards the current scroll position |
+| Explore | `src/index.js` | `OrbitControls` drives the camera; sculpted hills are Gaussian bumps passed to the vertex shader, picked by raycasting the pointer onto the ground |
 
 ## Performance
 

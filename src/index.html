@@ -44,6 +44,49 @@
         <a href="#start" data-dot="start" aria-label="Get started"></a>
     </nav>
 
+    <div class="explore-hud" id="explore-hud" hidden>
+        <div class="explore-toolbar" role="toolbar" aria-label="3D explore tools">
+            <div class="explore-toolbar__group" role="group" aria-label="Tool">
+                <button type="button" class="tool" data-tool="orbit" aria-pressed="true" title="Orbit (1)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="9" ry="4"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3v2M12 19v2"/></svg>
+                    <span>Orbit</span><kbd>1</kbd>
+                </button>
+                <button type="button" class="tool" data-tool="pan" aria-pressed="false" title="Pan (2)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>
+                    <span>Pan</span><kbd>2</kbd>
+                </button>
+                <button type="button" class="tool" data-tool="sculpt" aria-pressed="false" title="Sculpt (3)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 19c4 0 5-9 10-9s6 9 10 9"/><path d="M12 3v4M10 5l2-2 2 2"/></svg>
+                    <span>Sculpt</span><kbd>3</kbd>
+                </button>
+                <button type="button" class="tool" data-tool="move" aria-pressed="false" title="Select &amp; drag hills (4)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V10m0-.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3.6 15a1.5 1.5 0 0 1 2.4-1.8L8 15"/></svg>
+                    <span>Drag</span><kbd>4</kbd>
+                </button>
+            </div>
+            <span class="explore-toolbar__divider" aria-hidden="true"></span>
+            <div class="explore-toolbar__group" role="group" aria-label="View">
+                <button type="button" class="tool tool--icon" data-action="zoom-in" title="Zoom in (+)" aria-label="Zoom in">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M8 11h6M11 8v6"/></svg>
+                </button>
+                <button type="button" class="tool tool--icon" data-action="zoom-out" title="Zoom out (-)" aria-label="Zoom out">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M8 11h6"/></svg>
+                </button>
+                <button type="button" class="tool tool--icon" data-action="reset-view" title="Reset view (R)" aria-label="Reset view">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/></svg>
+                </button>
+                <button type="button" class="tool tool--icon" data-action="clear" title="Flatten all sculpted hills" aria-label="Flatten all sculpted hills">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
+                </button>
+                <button type="button" class="tool tool--icon" data-action="settings" aria-pressed="false" title="Terrain settings" aria-label="Terrain settings">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                </button>
+            </div>
+            <button type="button" class="button button--small explore-toolbar__done" data-action="exit">Done</button>
+        </div>
+        <p class="explore-hint" id="explore-hint" aria-live="polite"></p>
+    </div>
+
     <main id="main">
         <!-- Hero -->
         <section class="section section--hero" id="hero" data-section="hero">
@@ -140,7 +183,15 @@
             <div class="container">
                 <p class="eyebrow reveal">Playground</p>
                 <h2 class="section__title reveal">Make it <span class="gradient-text">yours</span></h2>
-                <p class="section__lead reveal">Every control updates the live terrain behind this page.</p>
+                <p class="section__lead reveal">Every control updates the live terrain behind this page. Want to get hands on? Fly around it, sculpt hills and drag them across the landscape.</p>
+
+                <div class="explore-cta reveal">
+                    <button type="button" class="button" id="explore-enter">
+                        <span class="explore-cta__icon" aria-hidden="true"></span>
+                        Enter 3D explore mode
+                    </button>
+                    <span class="explore-cta__hint">Orbit &middot; pan &middot; zoom &middot; sculpt &middot; drag</span>
+                </div>
 
                 <form class="panel reveal" id="controls" onsubmit="return false">
                     <label class="control">

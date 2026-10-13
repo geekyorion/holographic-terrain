@@ -7,6 +7,8 @@ uniform float uMiniIntensity;
 uniform vec3 uPalettePhase;
 uniform float uFogNear;
 uniform float uFogFar;
+// explore mode brush / selection: xy = terrain position, z = radius, w = visibility
+uniform vec4 uCursor;
 
 varying float vElevation;
 varying vec2 vTerrainPosition;
@@ -53,6 +55,14 @@ void main() {
 
     vec3 color = majorColor * (major + majorGlow) + miniColor * mini * uMiniIntensity * pulse;
     float alpha = max(major + majorGlow, mini * uMiniIntensity * pulse);
+
+    // Brush / selection ring drawn on the terrain surface
+    float cursorDistance = distance(vTerrainPosition, uCursor.xy);
+    float cursorRing = 1.0 - smoothstep(0.0, fwidth(cursorDistance) * 1.5, abs(cursorDistance - uCursor.z));
+    float cursorFill = (1.0 - smoothstep(0.0, uCursor.z, cursorDistance)) * 0.12;
+    float cursor = (cursorRing + cursorFill) * uCursor.w;
+    color += vec3(0.85, 0.95, 1.0) * cursor;
+    alpha = max(alpha, cursor);
 
     // Fade into the background at the plane edges and in the distance
     float edgeFade = 1.0 - smoothstep(0.32, 0.5, length(vUv - 0.5));

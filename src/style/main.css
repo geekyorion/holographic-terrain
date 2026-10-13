@@ -711,6 +711,228 @@ input[type='range']:active::-webkit-slider-thumb {
 }
 
 /**
+ * Explore mode
+ */
+.explore-cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 18px;
+    margin-bottom: 32px;
+}
+
+.explore-cta__icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 10px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 2.4s linear infinite;
+}
+
+.explore-cta__hint {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.explore-hud {
+    position: fixed;
+    left: 50%;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 65;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    animation: hud-in 0.5s var(--ease-out);
+}
+
+.explore-hud[hidden] {
+    display: none;
+}
+
+@keyframes hud-in {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+}
+
+.explore-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 6px;
+    overflow-x: auto;
+    border-radius: 18px;
+    border: 1px solid var(--surface-border);
+    background: rgba(9, 13, 24, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.8);
+    scrollbar-width: none;
+}
+
+.explore-toolbar__group {
+    display: flex;
+    gap: 4px;
+}
+
+.explore-toolbar__divider {
+    flex-shrink: 0;
+    width: 1px;
+    height: 28px;
+    margin: 0 4px;
+    background: var(--surface-border);
+}
+
+.explore-toolbar__done {
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
+.tool {
+    position: relative;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.tool--icon {
+    justify-content: center;
+    padding: 0;
+}
+
+.tool svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.tool kbd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+}
+
+.tool:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.tool[aria-pressed='true'] {
+    color: var(--text);
+    background: rgba(94, 242, 255, 0.12);
+    border-color: rgba(94, 242, 255, 0.45);
+}
+
+.tool[aria-pressed='true'] svg {
+    stroke: var(--accent-1);
+}
+
+.explore-hint {
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(9, 13, 24, 0.75);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    text-shadow: none;
+}
+
+/* While exploring the canvas takes the pointer and everything else steps aside */
+html.is-exploring {
+    overflow: hidden;
+}
+
+html.is-exploring .webgl {
+    touch-action: none;
+    cursor: grab;
+}
+
+html.is-exploring .webgl:active {
+    cursor: grabbing;
+}
+
+html.is-exploring[data-tool='sculpt'] .webgl {
+    cursor: ns-resize;
+}
+
+html.is-exploring[data-tool='move'] .webgl {
+    cursor: default;
+}
+
+html.is-exploring[data-tool='move'][data-hover='bump'] .webgl {
+    cursor: grab;
+}
+
+html.is-exploring[data-tool='move'][data-dragging] .webgl {
+    cursor: grabbing;
+}
+
+html.is-exploring main {
+    pointer-events: none;
+}
+
+html.is-exploring main > section:not(#playground),
+html.is-exploring #playground .container > :not(#controls),
+html.is-exploring .nav,
+html.is-exploring .section-dots,
+html.is-exploring .scroll-progress,
+html.is-exploring .vignette {
+    visibility: hidden;
+}
+
+html.is-exploring #controls {
+    display: none;
+}
+
+html.is-exploring.show-settings #controls {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 64;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    width: min(340px, calc(100vw - 32px));
+    max-height: calc(100vh - 160px);
+    max-height: calc(100svh - 160px);
+    padding: 22px;
+    overflow-y: auto;
+    pointer-events: auto;
+    background: rgba(9, 13, 24, 0.88);
+    animation: panel-in 0.35s var(--ease-out);
+}
+
+@keyframes panel-in {
+    from { opacity: 0; transform: translateX(-16px); }
+}
+
+/**
  * CTA + footer
  */
 .section--cta {
@@ -781,6 +1003,31 @@ input[type='range']:active::-webkit-slider-thumb {
     .section-dots {
         display: none;
     }
+
+    .tool span,
+    .tool kbd {
+        display: none;
+    }
+
+    /* wrap instead of scrolling so "Done" never ends up off screen */
+    .explore-toolbar {
+        flex-wrap: wrap;
+        justify-content: center;
+        overflow: visible;
+    }
+
+    .explore-toolbar__divider {
+        display: none;
+    }
+
+    html.is-exploring.show-settings #controls {
+        max-height: calc(100svh - 230px);
+    }
+
+    .tool {
+        padding: 0;
+        justify-content: center;
+    }
 }
 
 @media (max-width: 520px) {
@@ -794,6 +1041,11 @@ input[type='range']:active::-webkit-slider-thumb {
 
     .hero__actions .button {
         width: 100%;
+    }
+
+    .tool[data-action='zoom-in'],
+    .tool[data-action='zoom-out'] {
+        display: none;
     }
 
     .code {

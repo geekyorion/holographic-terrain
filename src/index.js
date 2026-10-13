@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import './style/main.css';
 import terrainVertexShader from './shaders/terrain/vertex.glsl';
@@ -74,8 +75,6 @@ const camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.1, 
 camera.position.set(...keyframes.hero.position);
 scene.add(camera);
 
-const cameraTarget = new THREE.Vector3(...keyframes.hero.target);
-
 /**
  * Terrain
  */
@@ -98,6 +97,9 @@ terrain.material = new THREE.ShaderMaterial({
     extensions: {
         derivatives: true
     },
+    defines: {
+        BUMPS_COUNT: 8
+    },
     uniforms: {
         uTime: { value: 0 },
         uOffset: { value: 0 },
@@ -110,7 +112,9 @@ terrain.material = new THREE.ShaderMaterial({
         uMiniIntensity: { value: settings.miniIntensity },
         uPalettePhase: { value: palettes[0].phase.clone() },
         uFogNear: { value: 4 },
-        uFogFar: { value: 13 }
+        uFogFar: { value: 13 },
+        uBumps: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, 0, 0, 1)) },
+        uCursor: { value: new THREE.Vector4(0, 0, 0.8, 0) }
     }
 });
 
@@ -362,6 +366,331 @@ document.querySelectorAll('[data-swatch]').forEach((chip) => {
 syncControls();
 
 /**
+ * Explore mode: orbit, pan, zoom, sculpt hills and drag them around
+ */
+const explore = {
+    active: false,
+    tool: 'orbit',
+    hud: document.querySelector('#explore-hud'),
+    hint: document.querySelector('#explore-hint'),
+    enterButton: document.querySelector('#explore-enter'),
+    // hills in terrain coordinates
+    bumps: [],
+    maxBumps: terrain.material.uniforms.uBumps.value.length,
+    brushRadius: 0.9,
+    hoveredBump: null,
+    selectedBump: null,
+    drag: null,
+    cursor: { x: 0, z: 0, visible: 0, targetVisible: 0 },
+    resetting: false,
+    home: { position: new THREE.Vector3(), target: new THREE.Vector3() }
+};
+
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+const hints = isTouch ? {
+    orbit: 'Drag to orbit · Two fingers to pan and pinch to zoom',
+    pan: 'Drag to pan · Two fingers to pan and pinch to zoom',
+    sculpt: 'Swipe up to raise a hill, down to dig a valley',
+    move: 'Touch a hill and drag it around'
+} : {
+    orbit: 'Drag to orbit · Right-drag to pan · Scroll to zoom',
+    pan: 'Drag to pan · Right-drag to orbit · Scroll to zoom',
+    sculpt: 'Drag up to raise a hill, down to dig a valley · Right-drag to orbit',
+    move: 'Select a hill and drag it around · Delete removes it · Right-drag to orbit'
+};
+
+const controls = new OrbitControls(camera, canvas);
+controls.enabled = false;
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.2;
+controls.maxDistance = 11;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.zoomSpeed = 0.8;
+// grabbing the camera cancels a running "reset view"
+controls.addEventListener('start', () => {
+    explore.resetting = false;
+});
+
+const setTool = (tool) => {
+    explore.tool = tool;
+    document.documentElement.dataset.tool = tool;
+    explore.hud.querySelectorAll('[data-tool]').forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.tool === tool));
+    });
+    explore.hint.textContent = hints[tool];
+
+    const isBrush = tool === 'sculpt' || tool === 'move';
+    controls.mouseButtons = {
+        LEFT: isBrush ? -1 : tool === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: tool === 'orbit' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE
+    };
+    controls.touches = {
+        ONE: isBrush ? -1 : tool === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+    };
+
+    if (!isBrush) explore.cursor.targetVisible = 0;
+    if (tool !== 'move') explore.selectedBump = null;
+};
+
+const syncBumps = () => {
+    const uniform = terrain.material.uniforms.uBumps.value;
+    uniform.forEach((vector, index) => {
+        const bump = explore.bumps[index];
+        if (bump) vector.set(bump.x, bump.z, bump.height, bump.radius);
+        else vector.set(0, 0, 0, 1);
+    });
+};
+
+// Terrain coordinates under the pointer (ray against the ground plane)
+const raycaster = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const pointerNdc = new THREE.Vector2();
+const groundHit = new THREE.Vector3();
+
+const pickTerrain = (event) => {
+    pointerNdc.set((event.clientX / sizes.width) * 2 - 1, -(event.clientY / sizes.height) * 2 + 1);
+    raycaster.setFromCamera(pointerNdc, camera);
+    if (!raycaster.ray.intersectPlane(groundPlane, groundHit)) return null;
+    if (Math.abs(groundHit.x) > 8 || Math.abs(groundHit.z) > 8) return null;
+
+    // the vertex shader samples the terrain at (x, z - offset)
+    return { x: groundHit.x, z: groundHit.z - terrain.material.uniforms.uOffset.value };
+};
+
+const findBump = (point) => {
+    let closest = null;
+    let closestDistance = Infinity;
+    explore.bumps.forEach((bump) => {
+        const distance = Math.hypot(bump.x - point.x, bump.z - point.z);
+        if (distance < bump.radius && distance < closestDistance) {
+            closest = bump;
+            closestDistance = distance;
+        }
+    });
+    return closest;
+};
+
+const isBrushPointer = (event) => (
+    explore.active
+    && (explore.tool === 'sculpt' || explore.tool === 'move')
+    && (event.pointerType !== 'mouse' || event.button === 0)
+    && event.isPrimary
+);
+
+canvas.addEventListener('pointerdown', (event) => {
+    if (!isBrushPointer(event)) return;
+
+    const point = pickTerrain(event);
+    if (!point) return;
+
+    if (explore.tool === 'sculpt') {
+        // start a new hill (the oldest one makes room when all are used)
+        const bump = { x: point.x, z: point.z, height: 0, radius: explore.brushRadius };
+        if (explore.bumps.length >= explore.maxBumps) explore.bumps.shift();
+        explore.bumps.push(bump);
+        explore.drag = { bump, startY: event.clientY, startHeight: 0 };
+    } else {
+        const bump = findBump(point);
+        explore.selectedBump = bump;
+        if (!bump) return;
+        explore.drag = { bump, offsetX: bump.x - point.x, offsetZ: bump.z - point.z };
+        document.documentElement.dataset.dragging = '';
+    }
+
+    canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener('pointermove', (event) => {
+    if (!explore.active) return;
+
+    const isBrush = explore.tool === 'sculpt' || explore.tool === 'move';
+    const point = isBrush ? pickTerrain(event) : null;
+    const drag = explore.drag;
+
+    if (drag && explore.tool === 'sculpt') {
+        drag.bump.height = clamp(drag.startHeight + (drag.startY - event.clientY) * 0.012, -2.5, 2.5);
+        syncBumps();
+        return;
+    }
+
+    if (drag && explore.tool === 'move' && point) {
+        drag.bump.x = point.x + drag.offsetX;
+        drag.bump.z = point.z + drag.offsetZ;
+        syncBumps();
+        return;
+    }
+
+    // hover feedback
+    if (point) {
+        explore.cursor.x = point.x;
+        explore.cursor.z = point.z;
+        explore.hoveredBump = explore.tool === 'move' ? findBump(point) : null;
+    }
+    explore.cursor.targetVisible = point && (explore.tool === 'sculpt' || explore.hoveredBump || explore.selectedBump) ? 1 : 0;
+
+    if (explore.hoveredBump) document.documentElement.dataset.hover = 'bump';
+    else delete document.documentElement.dataset.hover;
+});
+
+const endDrag = () => {
+    if (!explore.drag) return;
+
+    // tiny drags in sculpt mode would leave invisible hills behind
+    if (explore.tool === 'sculpt' && Math.abs(explore.drag.bump.height) < 0.05) {
+        explore.bumps.splice(explore.bumps.indexOf(explore.drag.bump), 1);
+        syncBumps();
+    }
+    explore.drag = null;
+    delete document.documentElement.dataset.dragging;
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+const zoomBy = (factor) => {
+    const offset = camera.position.clone().sub(controls.target);
+    const distance = clamp(offset.length() * factor, controls.minDistance, controls.maxDistance);
+    camera.position.copy(controls.target).add(offset.setLength(distance));
+};
+
+const resetView = () => {
+    explore.resetting = true;
+};
+
+const clearBumps = () => {
+    explore.bumps.length = 0;
+    explore.selectedBump = null;
+    explore.hoveredBump = null;
+    syncBumps();
+};
+
+const toggleSettings = (force) => {
+    const isOpen = document.documentElement.classList.toggle('show-settings', force);
+    explore.hud.querySelector('[data-action="settings"]').setAttribute('aria-pressed', String(isOpen));
+};
+
+const enterExplore = () => {
+    if (explore.active) return;
+    explore.active = true;
+
+    document.querySelector('#playground').scrollIntoView({ behavior: 'instant', block: 'start' });
+    explore.scrollY = window.scrollY;
+    document.documentElement.classList.add('is-exploring');
+    explore.hud.hidden = false;
+
+    // start from wherever the scroll camera currently is
+    explore.home.position.copy(camera.position);
+    explore.home.target.copy(scroll.current.target);
+    controls.target.copy(scroll.current.target);
+    controls.enabled = true;
+    controls.update();
+
+    setTool('orbit');
+    explore.hud.querySelector('[data-tool="orbit"]').focus({ preventScroll: true });
+};
+
+const exitExplore = () => {
+    if (!explore.active) return;
+    explore.active = false;
+
+    endDrag();
+    controls.enabled = false;
+    explore.cursor.targetVisible = 0;
+    explore.selectedBump = null;
+    toggleSettings(false);
+
+    // ease back from the explored view to the scroll camera
+    scroll.current.position.copy(camera.position);
+    scroll.current.target.copy(controls.target);
+
+    document.documentElement.classList.remove('is-exploring');
+    delete document.documentElement.dataset.tool;
+    delete document.documentElement.dataset.hover;
+    explore.hud.hidden = true;
+    // the scrollbar coming back reflows the page, put it back where it was
+    window.scrollTo({ top: explore.scrollY, behavior: 'instant' });
+    explore.enterButton.focus({ preventScroll: true });
+};
+
+explore.enterButton.addEventListener('click', enterExplore);
+
+explore.hud.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button) return;
+
+    if (button.dataset.tool) setTool(button.dataset.tool);
+
+    switch (button.dataset.action) {
+        case 'zoom-in': zoomBy(0.8); break;
+        case 'zoom-out': zoomBy(1.25); break;
+        case 'reset-view': resetView(); break;
+        case 'clear': clearBumps(); break;
+        case 'settings': toggleSettings(); break;
+        case 'exit': exitExplore(); break;
+        default: break;
+    }
+});
+
+window.addEventListener('keydown', (event) => {
+    if (!explore.active || event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const tools = { 1: 'orbit', 2: 'pan', 3: 'sculpt', 4: 'move' };
+    if (tools[event.key]) {
+        setTool(tools[event.key]);
+    } else if (event.key === 'Escape') {
+        if (document.documentElement.classList.contains('show-settings')) toggleSettings(false);
+        else exitExplore();
+    } else if (event.key === '+' || event.key === '=') {
+        zoomBy(0.8);
+    } else if (event.key === '-') {
+        zoomBy(1.25);
+    } else if (event.key === 'r' || event.key === 'R') {
+        resetView();
+    } else if ((event.key === 'Delete' || event.key === 'Backspace') && explore.selectedBump) {
+        explore.bumps.splice(explore.bumps.indexOf(explore.selectedBump), 1);
+        explore.selectedBump = null;
+        syncBumps();
+    } else {
+        return;
+    }
+    event.preventDefault();
+});
+
+const updateExplore = (deltaTime) => {
+    // fly back to the starting view
+    if (explore.resetting) {
+        const ease = 1 - Math.exp(-deltaTime * 6);
+        camera.position.lerp(explore.home.position, ease);
+        controls.target.lerp(explore.home.target, ease);
+        if (camera.position.distanceTo(explore.home.position) < 0.01) explore.resetting = false;
+    }
+    controls.update();
+};
+
+// Brush / selection ring
+const updateCursor = (deltaTime) => {
+    const cursor = explore.cursor;
+    const focus = explore.drag?.bump || explore.selectedBump || (explore.tool === 'move' ? explore.hoveredBump : null);
+    const uniform = terrain.material.uniforms.uCursor.value;
+
+    if (focus) {
+        uniform.x = focus.x;
+        uniform.y = focus.z;
+        uniform.z = focus.radius;
+        cursor.targetVisible = explore.active ? 1 : 0;
+    } else {
+        uniform.x = cursor.x;
+        uniform.y = cursor.z;
+        uniform.z = explore.brushRadius;
+    }
+
+    cursor.visible = lerp(cursor.visible, cursor.targetVisible, 1 - Math.exp(-deltaTime * 12));
+    uniform.w = cursor.visible;
+};
+
+/**
  * Resize
  */
 window.addEventListener('resize', () => {
@@ -407,7 +736,8 @@ const loop = () => {
 
     const uniforms = terrain.material.uniforms;
     uniforms.uTime.value += deltaTime * settings.flowSpeed * (1 + boost * 2) * motionScale;
-    uniforms.uOffset.value += deltaTime * (0.12 + scroll.velocity * 0.0005) * motionScale;
+    // the terrain holds still while exploring so sculpted hills stay under the pointer
+    if (!explore.active) uniforms.uOffset.value += deltaTime * (0.12 + scroll.velocity * 0.0005) * motionScale;
 
     // Blend the two keyframes around the current scroll position
     const { from, to, t } = getScrollKeyframes();
@@ -444,10 +774,15 @@ const loop = () => {
     pointer.easedX = lerp(pointer.easedX, pointer.x, 1 - Math.exp(-deltaTime * 4));
     pointer.easedY = lerp(pointer.easedY, pointer.y, 1 - Math.exp(-deltaTime * 4));
 
-    camera.position.copy(current.position);
-    camera.position.x += pointer.easedX * 0.35 * parallax;
-    camera.position.y -= pointer.easedY * 0.15 * parallax;
-    camera.lookAt(current.target);
+    if (explore.active) {
+        updateExplore(deltaTime);
+    } else {
+        camera.position.copy(current.position);
+        camera.position.x += pointer.easedX * 0.35 * parallax;
+        camera.position.y -= pointer.easedY * 0.15 * parallax;
+        camera.lookAt(current.target);
+    }
+    updateCursor(deltaTime);
 
     // Render
     if (renderer) {
